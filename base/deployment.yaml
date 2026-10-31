@@ -35,8 +35,8 @@ spec:
           type: RuntimeDefault
       containers:
         - name: server
-          # Source release 1ae85e30096eeb6e334f7856f267ae85194849ec; CI run 41224202310.
-          image: ghcr.io/flukesupakorn/flexshome-pipeline-demo@sha256:6bb74ae024acc1f708e647805438fea12c814741cfbb8318e8c8617f00fecaa7
+          # Source release d81541d6924acc4ab7b4378112b29a6f7a6ef053; CI run 41226212205.
+          image: ghcr.io/flukesupakorn/flexshome-pipeline-demo@sha256:42a0845eceab1b421c68ed8e53ead479e3bbb9ffadf4057c0d72c1afe9f9f0f3
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
