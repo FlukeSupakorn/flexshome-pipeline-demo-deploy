@@ -7,7 +7,7 @@ mkdir -p "$tool_dir" "$render_dir"
 sha256sum --check --strict schemas/SHA256SUMS
 go build -trimpath -o "$tool_dir/validate" ./cmd/validate
 status=0
-for environment in dev uat prod; do
+for environment in prod; do
   echo "Validating $environment"
   output="$render_dir/$environment.yaml"
   if "$tool_dir/kustomize" build "overlays/$environment" > "$output"; then

@@ -38,5 +38,5 @@ jobs:
           go vet ./...
       - name: Install checksum-verified validators
         run: bash scripts/install-tools.sh
-      - name: Render and validate all environments
+      - name: Render and validate the production deployment
         run: bash scripts/validate.sh

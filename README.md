@@ -1,7 +1,7 @@
 # FlexsHome pipeline demo deployment
 
 This private repository owns the stateless demo Deployment, Service, namespaced
-budgets, network policies and dev/UAT/prod Kustomize overlays. Application source
+budgets, network policies and the active production Kustomize overlay. Application source
 and build CI are in `FlukeSupakorn/flexshome-pipeline-demo`; the trusted
 `flexshome-version-control` repository selects an immutable commit from here.
 
@@ -20,16 +20,20 @@ HTTP requests for at most 10 seconds; Kubernetes allows 30 seconds. Probes use H
 directly, so the minimal image needs no shell, curl, package manager, or lifecycle
 script. The process logs to stdout/stderr and needs no writable filesystem.
 
-Every overlay has one replica; this single-node pattern does not provide HA.
-Requests are 25m/32Mi (dev), 50m/48Mi (UAT), 100m/64Mi (prod), with respective limits
-250m/128Mi, 250m/128Mi, 500m/192Mi. Shared namespace budgets allow the old and new
-Pod to overlap during a rolling update. Measure actual use before tuning them.
+Production has one replica; this single-node pattern does not provide HA.
+`overlays/prod/resources.yaml` owns CPU/RAM requests of 100m/64Mi and limits of
+500m/192Mi. `base/budget.yaml` owns namespace quotas/defaults; its 200m CPU-request
+and 1 CPU-limit budgets allow two production Pods during a rolling update.
+Measure actual use before tuning them.
 Startup, readiness and liveness checks address different failure conditions.
 
-Only dev should be selected by the central GitOps catalog initially. UAT/prod are
-validated templates and are inactive until explicitly selected and their
-namespaces and external credentials are provisioned. Their Ingress hosts are
-internal routing names, not configured DNS, public URLs, or TLS certificates.
+Only `overlays/prod` is selected by the central GitOps catalog. Local development
+uses the source application on Windows with its existing dev defaults; no cluster
+dev namespace is needed. The retained dev/UAT overlays are optional inactive
+examples, excluded from the production gate and deployed namespace list. Enabling
+one later requires a deliberate gate/project change and separate acceptance.
+The production Ingress host is an internal routing name, not configured DNS, a
+public URL, or a TLS certificate.
 The K3s Traefik Service remains internal; public exposure is a separate central
 platform change.
 
@@ -37,11 +41,11 @@ platform change.
 
 The central trusted repository/administrator supplies, outside this repository:
 
-- `pipeline-demo-dev` (and later UAT/prod) Namespace with restricted Pod Security
+- `pipeline-demo-prod` Namespace with restricted Pod Security
   Admission labels, namespace access controls, and an Argo AppProject limited to
   these namespaced kinds. It must not grant this app Namespace, RBAC, Secret,
   cluster-scoped resources, privileged controllers, or GitOps root authority.
-- `ghcr-read`, a `kubernetes.io/dockerconfigjson` Secret in each activated
+- `ghcr-read`, a `kubernetes.io/dockerconfigjson` Secret in the production
   namespace, using a separate runtime `read:packages` credential. Job tokens are
   short-lived build credentials and are not runtime pull credentials.
 - The read-only Argo repository credential, central manifest revision selection,
@@ -63,6 +67,11 @@ blocked. Verify actual controller labels and both allowed/denied paths at runtim
 A future Tailscale proxy targeting the Service directly needs a reviewed,
 explicit proxy namespace/Pod peer; it is not implicitly allowed here.
 
+Runtime environment values live in `overlays/prod/kustomization.yaml` as generated
+ConfigMap literals. Secret values remain external; the manifest contains only
+the `ghcr-read` Secret reference. CPU/RAM, environment and storage declarations
+belong here rather than in the source application or central revision pointer.
+
 This demo has no PVC, volumes or fake persistent mount. A future stateful app
 needs its own storage class, capacity, mount permissions, backup/restore evidence,
 retention and migration/rollback design before adding a PVC. Removing a workload
@@ -80,7 +89,7 @@ bash scripts/validate.sh
 ```
 
 The installer verifies pinned official release SHA256 values. Validation renders
-all three overlays, checks the vendored Kubernetes 1.36 strict schemas **offline**,
+only the active production overlay, checks the vendored Kubernetes 1.36 strict schemas **offline**,
 and enforces the app's digest, namespace, health, security, resource, config and
 network contracts. An unknown resource kind or absent schema fails closed. CI
 uses only the `flexshome-manifest` self-hosted ARC scale set and the pinned Go
@@ -89,7 +98,7 @@ Node runtime for pinned JavaScript actions. CI has no deployment credentials,
 repository-writing permission, cluster API access or GitHub mutation steps.
 
 Record the passed source run/commit and image digest in the release review. Change
-the exact digest here, validate all overlays, and obtain a passed manifest commit.
+the exact digest here, validate production, and obtain a passed manifest commit.
 Then central release verification selects that **full manifest commit**, and
 pins/synchronizes the exact passed central commit. CI never edits this repository
 or the central repository. Do not release mutable tags or restart/delete Pods as

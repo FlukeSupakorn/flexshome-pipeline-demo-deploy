@@ -3,6 +3,24 @@
 Local preparation only. This is not a passed release, live CI run, private image
 pull, or deployment acceptance record.
 
+## Production-only update — 2026-10-31
+
+The current deployment target is only overlays/prod and pipeline-demo-prod.
+Local dev remains in the source application. Dev/UAT overlays are retained as
+optional inactive examples; scripts/validate.sh and its CI step render production
+only. This decision supersedes the earlier three-overlay acceptance target.
+
+Fresh local checks: go test -count=1 ./... and go vet ./... passed. The actual
+production validation script checked all seven schema hashes and rendered nine
+resources: nine valid, zero invalid/errors/skipped. It returned1 for the committed
+invalid image placeholder, as required. An external disposable rendered fixture
+with an explicitly synthetic digest passed the production app policy; adding an
+unknown Deployment field failed strict schema validation. No synthetic digest was
+written into the manifests. Shell syntax and Git whitespace checks passed.
+These checks do not prove live CI, registry publication/pulls or Argo rollout.
+
+## Earlier template checks
+
 - `go test -count=1 ./...`: 32 test cases/subtests passed, zero failures.
 - `go vet ./...`: passed.
 - Actionlint1.7.12 initially rejected job-level `runner.temp` expressions in
@@ -37,4 +55,4 @@ runtime GHCR credential, run source CI and record its real immutable digest,
 replace the placeholder through review, pass manifest CI, and have the trusted
 central release verifier select this repository's full passed commit. Then prove
 actual image pull, admission, health/version, network allow/deny, rollout and
-rollback on K3s. Activate dev first; UAT/prod stay unselected.
+rollback on K3s. Activate production only; local dev runs from source, and the optional dev/UAT templates stay unselected.
