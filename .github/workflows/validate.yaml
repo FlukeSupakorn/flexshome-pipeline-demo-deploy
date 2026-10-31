@@ -1,0 +1,40 @@
+name: validate-manifests
+on:
+  pull_request:
+  push:
+    branches: [main, platform/bootstrap]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: manifest-validation-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  validate:
+    runs-on: flexshome-manifest
+    timeout-minutes: 15
+    container:
+      image: golang:1.27.3-bookworm@sha256:d9b6a1beb9474adc2a1ce842573639b44b2a0dd49b6669f51d3821baf9ec37c9
+      options: --user 1001:1001
+    defaults:
+      run:
+        shell: bash
+    env:
+      HOME: ${{ runner.temp }}/home
+      GOCACHE: ${{ runner.temp }}/go-build
+      GOMODCACHE: ${{ runner.temp }}/go-mod
+    steps:
+      - name: Checkout exact revision
+        # actions/checkout v7.0.1, resolved from the official tag.
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Test policy and inspect Go code
+        run: |
+          mkdir -p "$HOME" "$GOCACHE" "$GOMODCACHE"
+          go test ./...
+          go vet ./...
+      - name: Install checksum-verified validators
+        run: bash scripts/install-tools.sh
+      - name: Render and validate all environments
+        run: bash scripts/validate.sh

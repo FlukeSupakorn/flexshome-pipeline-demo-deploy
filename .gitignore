@@ -2,3 +2,5 @@ secrets/
 .env
 *.agekey
 *kubeconfig*
+.tools/
+.rendered/

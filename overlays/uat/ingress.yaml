@@ -1,0 +1,17 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: pipeline-demo
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: pipeline-demo.uat.flexshome.internal
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: pipeline-demo
+                port:
+                  name: http
