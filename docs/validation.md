@@ -5,6 +5,11 @@ pull, or deployment acceptance record.
 
 - `go test -count=1 ./...`: 32 test cases/subtests passed, zero failures.
 - `go vet ./...`: passed.
+- Actionlint1.7.12 initially rejected job-level `runner.temp` expressions in
+  HOME/GOCACHE/GOMODCACHE. Runtime directories now use `$RUNNER_TEMP` in an early
+  step and publish standard variables through `$GITHUB_ENV`. Actionlint passes
+  with the explicit self-hosted runner label configuration. This is a static
+  workflow check; the real ARC job still requires acceptance.
 - New release-policy behavior was tested before implementation: 21 unsafe
   release mutations initially failed because the validator accepted them; after
   implementation they passed. Later selector, mixed secret/config source, and

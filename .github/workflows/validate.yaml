@@ -19,11 +19,14 @@ jobs:
     defaults:
       run:
         shell: bash
-    env:
-      HOME: ${{ runner.temp }}/home
-      GOCACHE: ${{ runner.temp }}/go-build
-      GOMODCACHE: ${{ runner.temp }}/go-mod
     steps:
+      - name: Prepare writable job directories
+        run: |
+          ci_home="$RUNNER_TEMP/flexshome-home"
+          ci_go_cache="$RUNNER_TEMP/flexshome-go-build"
+          ci_go_modules="$RUNNER_TEMP/flexshome-go-mod"
+          mkdir -p "$ci_home" "$ci_go_cache" "$ci_go_modules"
+          printf 'HOME=%s\nGOCACHE=%s\nGOMODCACHE=%s\n' "$ci_home" "$ci_go_cache" "$ci_go_modules" >> "$GITHUB_ENV"
       - name: Checkout exact revision
         # actions/checkout v7.0.1, resolved from the official tag.
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -31,7 +34,6 @@ jobs:
           persist-credentials: false
       - name: Test policy and inspect Go code
         run: |
-          mkdir -p "$HOME" "$GOCACHE" "$GOMODCACHE"
           go test ./...
           go vet ./...
       - name: Install checksum-verified validators
