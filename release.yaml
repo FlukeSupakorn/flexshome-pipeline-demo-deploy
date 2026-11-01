@@ -4,7 +4,7 @@ metadata:
   name: pipeline-demo
 spec:
   sourceRepository: FlukeSupakorn/flexshome-pipeline-demo
-  sourceSha: "d84bdcda15f5de58cbd77bf4ee165b56876c894d"
-  workflowRunId: "41281019237"
+  sourceSha: "995019563ac96fb33ec794abf90f708ef71b5ed4"
+  workflowRunId: "41302543005"
   workflowRunAttempt: 1
-  imageRef: "ghcr.io/flukesupakorn/flexshome-pipeline-demo@sha256:65c0941d7728ef224c51b1199f109273894df892c06bd5d0969898246474e4b0"
+  imageRef: "ghcr.io/flukesupakorn/flexshome-pipeline-demo@sha256:bbdbaa1df01c4ac0f7b7d1e4b8bf1fb233d5758ae7720a16228e38559f392e49"
