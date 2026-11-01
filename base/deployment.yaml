@@ -45,10 +45,10 @@ spec:
             - configMapRef:
                 name: pipeline-demo-config
           securityContext:
-            allowPrivilegeEscalation: false
+            allowPrivilegeEscalation: true
             readOnlyRootFilesystem: true
             capabilities:
-              drop: [ALL]
+              drop: [ ALL ]
           resources:
             requests:
               cpu: 25m
