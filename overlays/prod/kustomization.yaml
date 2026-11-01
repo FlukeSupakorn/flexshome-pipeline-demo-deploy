@@ -14,4 +14,4 @@ patches:
 images:
   - name: ghcr.io/flukesupakorn/flexshome-pipeline-demo
     newName: ghcr.io/flukesupakorn/flexshome-pipeline-demo
-    digest: sha256:d42f5ab6af7c75e3833fea5487756e9f2bc7befbfb9be30786cfef1e590c265d
+    digest: "sha256:65c0941d7728ef224c51b1199f109273894df892c06bd5d0969898246474e4b0"
