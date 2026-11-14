@@ -4,6 +4,7 @@ namespace: pipeline-demo-prod
 resources:
   - ../../base
   - ingress.yaml
+  - cloudflared-policy.yaml
 configMapGenerator:
   - name: pipeline-demo-config
     literals:
