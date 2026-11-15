@@ -8,17 +8,76 @@ on:
 
 permissions:
   contents: read
-  actions: read
-  packages: read
 
 jobs:
-  ci:
-    uses: FlukeSupakorn/flexshome-platform/.github/workflows/validate-manifests.yaml@b0034d4f25aca73320d9468fb5d824bda57964dd
-    with:
-      mode: manifest
-      application_id: pipeline-demo
-      source_repository: FlukeSupakorn/flexshome-pipeline-demo
-      source_repository_id: '1440607759'
-      reader_app_id: ${{ vars.READER_APP_ID }}
-    secrets:
-      READER_APP_PRIVATE_KEY: ${{ secrets.READER_APP_PRIVATE_KEY }}
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Read the selected release
+        id: selection
+        shell: bash
+        run: |
+          ruby -ryaml -rjson -e 'puts YAML.safe_load_file("release.yaml").to_json' > "$RUNNER_TEMP/release.json"
+          jq -e '.apiVersion == "flexshome.io/v1" and .kind == "Release" and .metadata.name == "pipeline-demo" and (.spec | .sourceRepository == "FlukeSupakorn/flexshome-pipeline-demo" and (.sourceSha | test("^[a-f0-9]{40}$")) and (.workflowRunId | tostring | test("^[1-9][0-9]*$")) and (.workflowRunAttempt | tostring | test("^[1-9][0-9]*$")) and (.imageRef | test("^ghcr[.]io/flukesupakorn/flexshome-pipeline-demo@sha256:[a-f0-9]{64}$")))' "$RUNNER_TEMP/release.json" > /dev/null
+          jq -r '.spec | "run=\(.workflowRunId)\nartifact=release-\(.sourceSha)-\(.workflowRunId)-\(.workflowRunAttempt)"' "$RUNNER_TEMP/release.json" >> "$GITHUB_OUTPUT"
+      - name: Read exact successful main build
+        env:
+          RUN_ID: ${{ steps.selection.outputs.run }}
+        run: |
+          curl --fail --silent --show-error "https://api.github.com/repos/FlukeSupakorn/flexshome-pipeline-demo/actions/runs/$RUN_ID" > "$RUNNER_TEMP/run.json"
+          jq -e --slurpfile selection "$RUNNER_TEMP/release.json" '
+            . as $run | $selection[0].spec |
+            $run.repository.id == 1440607759 and
+            $run.head_repository.id == 1440607759 and
+            $run.path == ".github/workflows/ci.yml" and
+            $run.head_branch == "main" and $run.event == "push" and
+            $run.head_sha == .sourceSha and
+            ($run.run_attempt | tostring) == (.workflowRunAttempt | tostring) and
+            $run.status == "completed" and $run.conclusion == "success"
+          ' "$RUNNER_TEMP/run.json" > /dev/null
+      - name: Open scoped provenance reader
+        id: reader
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510
+        with:
+          app-id: ${{ vars.READER_APP_ID }}
+          private-key: ${{ secrets.READER_APP_PRIVATE_KEY }}
+          owner: FlukeSupakorn
+          repositories: flexshome-pipeline-demo
+          permission-actions: read
+      - name: Download exact source provenance
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
+        with:
+          name: ${{ steps.selection.outputs.artifact }}
+          repository: FlukeSupakorn/flexshome-pipeline-demo
+          run-id: ${{ steps.selection.outputs.run }}
+          github-token: ${{ steps.reader.outputs.token }}
+          path: ${{ runner.temp }}/source-release
+      - name: Validate provenance, rendered manifests, and image selection
+        shell: bash
+        run: |
+          jq -e --slurpfile selection "$RUNNER_TEMP/release.json" '
+            . as $built | $selection[0].spec |
+            $built.schema == "flexshome.release/v2" and
+            $built.source_repository == .sourceRepository and
+            $built.source_sha == .sourceSha and
+            ($built.workflow_run_id | tostring) == (.workflowRunId | tostring) and
+            ($built.workflow_run_attempt | tostring) == (.workflowRunAttempt | tostring) and
+            $built.image_ref == .imageRef and $built.image_digest == (.imageRef | split("@")[1])
+          ' "$RUNNER_TEMP/source-release/release.json" > /dev/null
+          cd "$RUNNER_TEMP"
+          curl -fLsS 'https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv5.8.1/kustomize_v5.8.1_linux_amd64.tar.gz' -o kustomize.tar.gz
+          curl -fLsS 'https://github.com/yannh/kubeconform/releases/download/v0.8.0/kubeconform-linux-amd64.tar.gz' -o kubeconform.tar.gz
+          printf '%s  %s\n' \
+            029a7f0f4e1932c52a0476cf02a0fd855c0bb85694b82c338fc648dcb53a819d kustomize.tar.gz \
+            9bc2bffbf71f261128533edaf912153948b7ff238f9a531ae6d34466ec287883 kubeconform.tar.gz | sha256sum -c --strict
+          tar -xzf kustomize.tar.gz kustomize
+          tar -xzf kubeconform.tar.gz kubeconform
+          ./kustomize build "$GITHUB_WORKSPACE/overlays/prod" > prod.yaml
+          ./kubeconform -strict -summary -kubernetes-version 1.36.5 prod.yaml
+          ruby -ryaml -rjson -e 'puts YAML.load_stream(File.read("prod.yaml")).to_json' | jq -e --slurpfile selection release.json '
+            [.[] | select(.kind == "Deployment") | .spec.template.spec.containers[].image] == [$selection[0].spec.imageRef]
+          ' > /dev/null
